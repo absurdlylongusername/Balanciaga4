@@ -9,18 +9,18 @@ using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Bind options with normal .NET precedence (appsettings, env, CLI, etc)
-// builder.Services.Configure<LbOptions>(builder.Configuration.GetSection("LoadBalancer"));
+var lbSection = builder.Configuration.GetSection("LoadBalancer");
 
-// Bind raw config (strings) with normal precedence
-builder.Services.AddOptions<LbOptionsRaw>()
-    .Bind(builder.Configuration.GetSection("LoadBalancer"))
-    .ValidateOnStart();
+builder.Services.AddOptions<LbOptions>().ValidateOnStart(); // typed
 
-// Map raw → typed, and validate typed options
-builder.Services.AddSingleton<IConfigureOptions<LbOptions>, LbOptionsConfigurator>();
+builder.Services.AddSingleton<IConfigureOptions<LbOptions>>(
+    new LbOptionsConfigurator(lbSection));   // maps strings → typed
+
+builder.Services.AddSingleton<IOptionsChangeTokenSource<LbOptions>>(
+    new ConfigurationChangeTokenSource<LbOptions>(lbSection)); // reloads
+
 builder.Services.AddSingleton<IValidateOptions<LbOptions>, LbOptionsValidator>();
-builder.Services.AddOptions<LbOptions>().ValidateOnStart();
+
 
 
 // Core services
