@@ -13,8 +13,8 @@ var lbSection = builder.Configuration.GetSection("LoadBalancer");
 
 builder.Services.AddOptions<LbOptions>().ValidateOnStart(); // typed
 
-builder.Services.AddSingleton<IConfigureOptions<LbOptions>>(
-    new LbOptionsConfigurator(lbSection));   // maps strings → typed
+builder.Services.AddSingleton<IConfigureOptions<LbOptions>>(sp =>
+    new LbOptionsConfigurator(sp.GetRequiredService<ILogger<LbOptionsConfigurator>>(), lbSection));   // maps strings → typed
 
 builder.Services.AddSingleton<IOptionsChangeTokenSource<LbOptions>>(
     new ConfigurationChangeTokenSource<LbOptions>(lbSection)); // reloads
@@ -27,6 +27,8 @@ builder.Services.AddSingleton<IValidateOptions<LbOptions>, LbOptionsValidator>()
 builder.Services.AddSingleton<IBackendRegistry, BackendRegistry>();
 builder.Services.AddSingleton<ILoadBalancingPolicy, RoundRobinPolicy>(); // default; swappable later
 builder.Services.AddSingleton<IBytePump, StreamBytePump>();
+builder.Services.AddSingleton<IProxySession, ProxySession>();
+
 
 // Dispatcher + Listener
 builder.Services.AddSingleton<IConnectionDispatcher, ConnectionDispatcher>();

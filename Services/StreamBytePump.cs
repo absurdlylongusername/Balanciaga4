@@ -26,7 +26,6 @@ public sealed class StreamBytePump : IBytePump
                 }
 
                 await destinationStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                await destinationStream.FlushAsync(cancellationToken);
             }
         }
         finally

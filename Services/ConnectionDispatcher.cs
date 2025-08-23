@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Net;
+using System.Net.Sockets;
 using Balanciaga4.Interfaces;
 using Balanciaga4.Options;
 using Microsoft.Extensions.Logging;
@@ -8,39 +9,63 @@ namespace Balanciaga4.Services;
 
 public sealed class ConnectionDispatcher : IConnectionDispatcher
 {
-    private readonly ILogger<ConnectionDispatcher> _logger;
-    private readonly IOptionsMonitor<LbOptions> _optionsMonitor;
-    private readonly IBackendRegistry _backendRegistry;
-    private readonly ILoadBalancingPolicy _loadBalancingPolicy;
+    private ILogger<ConnectionDispatcher> Logger { get; }
+    private IOptionsMonitor<LbOptions> OptionsMonitor { get; }
+    private IBackendRegistry BackendRegistry { get; }
+    private ILoadBalancingPolicy LoadBalancingPolicy { get; }
+    private IProxySession ProxySession { get; }
 
-    public ConnectionDispatcher(ILogger<ConnectionDispatcher> log, 
+    public ConnectionDispatcher(ILogger<ConnectionDispatcher> logger,
                                 IOptionsMonitor<LbOptions> optionsMonitor,
                                 IBackendRegistry backendRegistry,
-                                ILoadBalancingPolicy loadBalancingPolicy)
+                                ILoadBalancingPolicy loadBalancingPolicy,
+                                IProxySession proxySession)
     {
-        _logger = log;
-        _optionsMonitor = optionsMonitor;
-        _backendRegistry = backendRegistry;
-        _loadBalancingPolicy = loadBalancingPolicy;
+        Logger = logger;
+        OptionsMonitor = optionsMonitor;
+        BackendRegistry = backendRegistry;
+        LoadBalancingPolicy = loadBalancingPolicy;
+        ProxySession = proxySession;
     }
 
-    public async Task DispatchAsync(TcpClient client, CancellationToken cancellationToken)
+    public async Task DispatchAsync(TcpClient clientTcpClient, CancellationToken cancellationToken)
     {
-        using (client)
+        var remote = clientTcpClient.Client.RemoteEndPoint as IPEndPoint ?? throw new InvalidOperationException();
+        var clientContext = new ConnectionContext(remote.Address.ToString(), remote.Port);
+
+        var healthyEndpoints = BackendRegistry.GetHealthyEndpoints();
+        var chosenBackend = LoadBalancingPolicy.Choose(healthyEndpoints, clientContext);
+
+        if (chosenBackend is null)
         {
-            var clientEndpoint = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
-            _logger.LogDebug("Accepted {Client}", clientEndpoint);
+            Logger.LogWarning("No healthy backends; dropping connection from {Remote}", remote);
+            TryCloseNow(clientTcpClient);
+            return;
+        }
 
-            // For now, we have no proxy session; just close politely.
-            try
-            {
-                client.Client.Shutdown(SocketShutdown.Both);
-            }
-            catch
-            {
+        Logger.LogDebug("Routing {Remote} -> {Backend}", remote, chosenBackend);
 
-            }
-            await Task.CompletedTask;
+        await ProxySession.RunAsync(clientTcpClient, chosenBackend, cancellationToken);
+    }
+
+    private static void TryCloseNow(TcpClient tcpClient)
+    {
+        try
+        {
+            tcpClient.Client.Shutdown(SocketShutdown.Both);
+        }
+        catch
+        {
+            // ignore
+        }
+
+        try
+        {
+            tcpClient.Close();
+        }
+        catch
+        {
+            // ignore
         }
     }
 }

@@ -1,45 +1,52 @@
 using System.Net;
 using Balanciaga4.Options;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Balanciaga4.Options;
 
 public sealed class LbOptionsConfigurator : IConfigureOptions<LbOptions>
 {
-    private readonly IConfigurationSection _loadBalancerSection;
+    private IConfigurationSection LoadBalancerSection { get; }
+    private ILogger<LbOptionsConfigurator> Logger { get; }
 
-    public LbOptionsConfigurator(IConfigurationSection loadBalancerSection)
+
+    public LbOptionsConfigurator(ILogger<LbOptionsConfigurator> logger, IConfigurationSection loadBalancerSection)
     {
-        _loadBalancerSection = loadBalancerSection;
+        LoadBalancerSection = loadBalancerSection;
+        Logger = logger;
     }
 
     public void Configure(LbOptions options)
     {
+        Logger.LogInformation("Configuring LbOptions");
         // Bind sub-objects with primitives directly from configuration
         var limits = new LimitsOptions();
-        _loadBalancerSection.GetSection(nameof(LbOptions.Limits)).Bind(limits);
+        LoadBalancerSection.GetSection(nameof(LbOptions.Limits)).Bind(limits);
 
         var timeouts = new TimeoutsOptions();
-        _loadBalancerSection.GetSection(nameof(LbOptions.Timeouts)).Bind(timeouts);
+        LoadBalancerSection.GetSection(nameof(LbOptions.Timeouts)).Bind(timeouts);
 
         var health = new HealthCheckOptions();
-        _loadBalancerSection.GetSection(nameof(LbOptions.HealthCheck)).Bind(health);
+        LoadBalancerSection.GetSection(nameof(LbOptions.HealthCheck)).Bind(health);
 
         options.Limits = limits;
         options.Timeouts = timeouts;
         options.HealthCheck = health;
 
         // Policy (enum)
-        var policyString = _loadBalancerSection[nameof(LbOptions.HealthCheck)];
+        var policyString = LoadBalancerSection[nameof(LbOptions.HealthCheck)];
         if (!string.IsNullOrWhiteSpace(policyString) &&
             Enum.TryParse<Policy>(policyString, ignoreCase: true, out var parsedPolicy))
         {
             options.Policy = parsedPolicy;
         }
 
+        Logger.LogInformation("Load balancing policy: {Policy}", options.Policy);
+
         // Listen endpoint
-        var listenValue = _loadBalancerSection[nameof(LbOptions.ListenEndpoint)];
+        var listenValue = LoadBalancerSection[nameof(LbOptions.ListenEndpoint)];
         if (string.IsNullOrWhiteSpace(listenValue))
         {
             throw new OptionsValidationException(
@@ -51,7 +58,7 @@ public sealed class LbOptionsConfigurator : IConfigureOptions<LbOptions>
         options.ListenEndpoint = ParseEndPointOrThrow(listenValue);
 
         // Backend endpoints
-        var backendStrings = _loadBalancerSection.GetSection(nameof(LbOptions.BackendEndpoints)).Get<string[]>() ?? [];
+        var backendStrings = LoadBalancerSection.GetSection(nameof(LbOptions.BackendEndpoints)).Get<string[]>() ?? [];
         if (backendStrings.Length == 0)
         {
             throw new OptionsValidationException(

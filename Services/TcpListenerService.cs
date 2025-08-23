@@ -10,24 +10,26 @@ namespace Balanciaga4.Services;
 
 public sealed class TcpListenerService : BackgroundService
 {
-    private readonly ILogger<TcpListenerService> _logger;
-    private readonly IOptionsMonitor<LbOptions> _opts;
-    private readonly IConnectionDispatcher _dispatcher;
+    private ILogger<TcpListenerService> Logger { get; }
+    private IOptionsMonitor<LbOptions> OptionsMonitor { get; }
+    private IConnectionDispatcher ConnectionDispatcher { get; }
 
-    public TcpListenerService(ILogger<TcpListenerService> log, IOptionsMonitor<LbOptions> opts, IConnectionDispatcher dispatcher)          
+    public TcpListenerService(ILogger<TcpListenerService> logger, IOptionsMonitor<LbOptions> optionsMonitor, IConnectionDispatcher connectionDispatcher)
     {
-        _logger = log; _opts = opts; _dispatcher = dispatcher;
+        Logger = logger;
+        OptionsMonitor = optionsMonitor;
+        ConnectionDispatcher = connectionDispatcher;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var listenEndpoint = _opts.CurrentValue.ListenEndpoint;
+        var listenEndpoint = OptionsMonitor.CurrentValue.ListenEndpoint;
         var listener = new TcpListener(listenEndpoint);
         listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        listener.Start(_opts.CurrentValue.Limits.Backlog);
+        listener.Start(OptionsMonitor.CurrentValue.Limits.Backlog);
 
-        _logger.LogInformation("Listening on {Listen} (backlog={Backlog})", listenEndpoint,
-                               _opts.CurrentValue.Limits.Backlog);
+        Logger.LogInformation("Listening on {Listen} (backlog={Backlog})", listenEndpoint,
+                               OptionsMonitor.CurrentValue.Limits.Backlog);
 
         try
         {
@@ -40,17 +42,27 @@ public sealed class TcpListenerService : BackgroundService
                 }
                 catch (OperationCanceledException) { break; }
 
-                _ = Task.Run(() => _dispatcher.DispatchAsync(client, stoppingToken), stoppingToken)
+                var endpoint = (client.Client.RemoteEndPoint as IPEndPoint)!;
+                Logger.LogInformation("Accepted client {Client}:{Port}", endpoint.Address.ToString(), endpoint.Port);
+                client.NoDelay = true;
+                _ = Task.Run(() => ConnectionDispatcher.DispatchAsync(client, stoppingToken), stoppingToken)
                         .ContinueWith(t =>
                         {
-                            if (t.IsFaulted) _logger.LogError(t.Exception, "Dispatch error");
+                            if (t.IsFaulted)
+                            {
+                                Logger.LogError(t.Exception,
+                                                "Dispatch error for client {Address}:{Port}",
+                                                endpoint.Address,
+                                                endpoint.Port);
+                            }
+                            client.Dispose();
                         }, stoppingToken);
             }
         }
         finally
         {
             listener.Stop();
-            _logger.LogInformation("Listener stopped");
+            Logger.LogInformation("Listener stopped");
         }
     }
 }

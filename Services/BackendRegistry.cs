@@ -8,7 +8,7 @@ namespace Balanciaga4.Services;
 
 public sealed class BackendRegistry : IBackendRegistry
 {
-    private ConcurrentDictionary<IPEndPoint, int> ActiveEndpoints { get; } = new();
+    private ConcurrentDictionary<IPEndPoint, int> ActiveConnections { get; } = new();
     private volatile IReadOnlyList<IPEndPoint> _healthyEndpoints;
 
     public BackendRegistry(IOptionsMonitor<LbOptions> opts)
@@ -17,18 +17,18 @@ public sealed class BackendRegistry : IBackendRegistry
         {
             var endpoints = options.BackendEndpoints;
             _healthyEndpoints = endpoints;
-            foreach (var endpoint in endpoints) ActiveEndpoints.TryAdd(endpoint, 0);
+            foreach (var endpoint in endpoints) ActiveConnections.TryAdd(endpoint, 0);
         }
 
         Reload(opts.CurrentValue);
         opts.OnChange(Reload);
     }
 
-    public IReadOnlyList<IPEndPoint> GetHealthy() => _healthyEndpoints;
+    public IReadOnlyList<IPEndPoint> GetHealthyEndpoints() => _healthyEndpoints;
 
-    public int IncrementActive(IPEndPoint be) =>
-        ActiveEndpoints.AddOrUpdate(be, 1, (_, v) => v + 1);
+    public int IncrementConnection(IPEndPoint backendEndpoint) =>
+        ActiveConnections.AddOrUpdate(backendEndpoint, 1, (_, v) => v + 1);
 
-    public int DecrementActive(IPEndPoint be) =>
-        ActiveEndpoints.AddOrUpdate(be, 0, (_, v) => Math.Max(0, v - 1));
+    public int DecrementConnection(IPEndPoint backendEndpoint) =>
+        ActiveConnections.AddOrUpdate(backendEndpoint, 0, (_, v) => Math.Max(0, v - 1));
 }
