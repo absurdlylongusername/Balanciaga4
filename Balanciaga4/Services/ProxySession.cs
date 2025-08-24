@@ -36,6 +36,7 @@ public sealed class ProxySession : IProxySession
         try
         {
             await backendTcpClient.ConnectAsync(backendEndPoint, connectTimeoutCts.Token);
+            Logger.LogDebug("Connected to backend server {BackendEndPoint}", backendEndPoint);
         }
         catch (OperationCanceledException exception)
         {
@@ -56,37 +57,73 @@ public sealed class ProxySession : IProxySession
 
             // Idle timeout for the entire session: cancel both pumps if no activity for IdleMs.
             using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            idleCts.CancelAfter(options.Timeouts.IdleMs);
 
             // Log when idle timer elapses
+            var clientRemoteEndPoint = clientTcpClient.Client.RemoteEndPoint as IPEndPoint;
             idleCts.Token.Register(() =>
             {
                 Logger.LogInformation("Idle timeout elapsed for session {Client}->{Backend}.",
-                                clientTcpClient.Client.RemoteEndPoint,
-                                backendEndPoint);
+                                      clientRemoteEndPoint,
+                                      backendEndPoint);
             });
 
-            await using var clientObserved = new NotifyingStream(clientTcpClient.GetStream(), ResetIdle);
-            await using var backendObserved = new NotifyingStream(backendTcpClient.GetStream(), ResetIdle);
+            void ResetIdle() => idleCts.CancelAfter(options.Timeouts.IdleMs);
+
+            await using var clientStream = new NetworkStream(clientTcpClient.Client, ownsSocket: false);
+            await using var backendStream = new NetworkStream(backendTcpClient.Client, ownsSocket: false);
+
+            await using var clientObserved =
+                new NotifyingStream(clientStream,
+                                    onRead: bytes =>
+                                    {
+                                        ResetIdle();
+                                        Logger.LogDebug("{Client}->{Server} read {Count} bytes from client to LB",
+                                                        clientRemoteEndPoint,
+                                                        backendEndPoint, bytes);
+                                    },
+                                    onWrite: bytes =>
+                                    {
+                                        ResetIdle();
+                                        Logger.LogDebug("{Client}->{Server} sent {Count} bytes from LB to client",
+                                                        clientRemoteEndPoint,
+                                                        backendEndPoint, bytes);
+                                    });
+
+            await using var backendObserved =
+                new NotifyingStream(backendStream,
+                                    onRead: bytes =>
+                                    {
+                                        ResetIdle();
+                                        Logger.LogDebug("{Server}->{Client} read {Count} bytes from server to LB",
+                                                        backendEndPoint,
+                                                        clientRemoteEndPoint, bytes);
+                                    },
+                                    onWrite: bytes =>
+                                    {
+                                        ResetIdle();
+                                        Logger.LogDebug("{Server}->{Client} sent {Count} bytes to server to LB",
+                                                        backendEndPoint,
+                                                        clientRemoteEndPoint, bytes);
+                                    });
 
             // Two directional pumps; either side closing should half-close the opposite and allow a short drain.
+            Logger.LogDebug("Setting up pumps");
             var clientToBackend = BytePump.PipeAsync(clientObserved, backendObserved, idleCts.Token);
             var backendToClient = BytePump.PipeAsync(backendObserved, clientObserved, idleCts.Token);
+            Logger.LogDebug("Pumps set up");
+            ResetIdle(); //Starts idle timer after data transfer has begun
 
             var firstCompleted = await Task.WhenAny(clientToBackend, backendToClient);
-            var other = firstCompleted == clientToBackend ? backendToClient : clientToBackend;
+            var (first, second) =
+                firstCompleted == clientToBackend ?
+                    ((clientRemoteEndPoint, clientToBackend), (backendEndPoint , backendToClient))
+                  : ((backendEndPoint, clientToBackend), (clientRemoteEndPoint , backendToClient));
 
-            // Attempt half-close in both directions to signal EOF while allowing the other side to drain briefly.
-            TryShutdownSend(clientTcpClient);
+            Logger.LogDebug("{Endpoint} completed first", first.Item1);
+
             TryShutdownSend(backendTcpClient);
-
-            // Let the other direction drain briefly or until completion.
-            await Task.WhenAny(other, Task.Delay(500, default));
-
-            void ResetIdle()
-            {
-                idleCts.CancelAfter(options.Timeouts.IdleMs);
-            }
+            await Task.WhenAny(second.Item2);
+            Logger.LogDebug("{Endpoint} completed second", second.Item1);
         }
         finally
         {

@@ -36,6 +36,6 @@ builder.Services.AddHostedService<TcpListenerService>();
 
 // Logging
 builder.Logging.ClearProviders();
-builder.Logging.AddSimpleConsole(o => { o.SingleLine = true; o.TimestampFormat = "HH:mm:ss "; });
+builder.Logging.AddSimpleConsole(o => { o.SingleLine = true; o.TimestampFormat = "HH:mm:ss.fff "; });
 
 await builder.Build().RunAsync();

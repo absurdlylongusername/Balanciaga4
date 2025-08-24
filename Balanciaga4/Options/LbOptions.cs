@@ -5,6 +5,7 @@ namespace Balanciaga4.Options;
 public sealed class LbOptions
 {
     public IPEndPoint ListenEndpoint { get; set; } = new(IPAddress.Any, 8080);
+    public bool UpgradeListenToDualStack { get; set; } = true;
     public Policy Policy { get; set; } = Policy.RoundRobin;
     public IReadOnlyList<IPEndPoint> BackendEndpoints { get; set; } = [];
     public LimitsOptions Limits { get; set; } = new();

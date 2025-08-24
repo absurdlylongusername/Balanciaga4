@@ -5,7 +5,9 @@ namespace Balanciaga4.Services;
 /// </summary>
 /// <param name="innerStream"></param>
 /// <param name="onReadWrite"></param>
-public sealed class NotifyingStream(Stream innerStream, Action onReadWrite) : Stream
+public sealed class NotifyingStream(Stream innerStream,
+                                    Action<int>? onRead = null,
+                                    Action<int>? onWrite = null) : Stream
 {
     public override bool CanRead => innerStream.CanRead;
     public override bool CanSeek => innerStream.CanSeek;
@@ -28,7 +30,7 @@ public sealed class NotifyingStream(Stream innerStream, Action onReadWrite) : St
         var bytesRead = innerStream.Read(buffer, offset, count);
         if (bytesRead > 0)
         {
-            onReadWrite();
+            onRead?.Invoke(bytesRead);
         }
         return bytesRead;
     }
@@ -46,7 +48,7 @@ public sealed class NotifyingStream(Stream innerStream, Action onReadWrite) : St
     public override void Write(byte[] buffer, int offset, int count)
     {
         innerStream.Write(buffer, offset, count);
-        onReadWrite();
+        onWrite?.Invoke(count);
     }
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
@@ -54,7 +56,7 @@ public sealed class NotifyingStream(Stream innerStream, Action onReadWrite) : St
         var bytesRead = await innerStream.ReadAsync(buffer, cancellationToken);
         if (bytesRead > 0)
         {
-            onReadWrite();
+            onRead?.Invoke(bytesRead);
         }
         return bytesRead;
     }
@@ -62,7 +64,7 @@ public sealed class NotifyingStream(Stream innerStream, Action onReadWrite) : St
     public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         await innerStream.WriteAsync(buffer, cancellationToken);
-        onReadWrite();
+        onWrite?.Invoke(buffer.Length);
     }
 
     public override ValueTask DisposeAsync()

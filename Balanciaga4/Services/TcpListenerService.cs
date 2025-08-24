@@ -55,7 +55,9 @@ public sealed class TcpListenerService : BackgroundService
                                                 endpoint.Address,
                                                 endpoint.Port);
                             }
+                            Logger.LogDebug("Disposing of {Endpoint}", endpoint);
                             client.Dispose();
+                            Logger.LogDebug("Disposed of {Endpoint}", endpoint);
                         }, stoppingToken);
             }
         }
