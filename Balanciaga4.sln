@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36310.24 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Balanciaga4", "Balanciaga4/Balanciaga4.csproj", "{CBDB15F3-9F9D-496C-8231-631703A6E9CE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Balanciaga4.IntegrationTests", "Balanciaga4.IntegrationTests\Balanciaga4.IntegrationTests.csproj", "{D249936A-16CA-470C-84CF-3EF2919472E7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{CBDB15F3-9F9D-496C-8231-631703A6E9CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBDB15F3-9F9D-496C-8231-631703A6E9CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBDB15F3-9F9D-496C-8231-631703A6E9CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D249936A-16CA-470C-84CF-3EF2919472E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D249936A-16CA-470C-84CF-3EF2919472E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D249936A-16CA-470C-84CF-3EF2919472E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D249936A-16CA-470C-84CF-3EF2919472E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
