@@ -42,4 +42,7 @@ public sealed class HealthCheckOptions
 {
     public int IntervalMs { get; set; } = 2000;
     public int ConnectTimeoutMs { get; set; } = 500;
+    public int FailsToDown { get; init; } = 2;
+    public int PassesToUp { get; init; } = 1;
+    public int JitterMs { get; init; } = 150;
 }

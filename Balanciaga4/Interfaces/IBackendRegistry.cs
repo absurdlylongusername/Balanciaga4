@@ -4,7 +4,12 @@ namespace Balanciaga4.Interfaces;
 
 public interface IBackendRegistry
 {
+    IReadOnlyList<IPEndPoint> GetAllEndpoints();
     IReadOnlyList<IPEndPoint> GetHealthyEndpoints();
-    int IncrementConnection(IPEndPoint backendEndpoint);
-    int DecrementConnection(IPEndPoint backendEndpoint);
+    BackendInfo GetInfo(IPEndPoint endpoint);
+    void IncrementConnection(IPEndPoint backendEndpoint);
+    void DecrementConnection(IPEndPoint backendEndpoint);
+
+    void MarkAsUp(IPEndPoint endpoint, string reason, DateTimeOffset nowUtc);   // new
+    void MarkAsDown(IPEndPoint endpoint, string reason, DateTimeOffset nowUtc); // new
 }

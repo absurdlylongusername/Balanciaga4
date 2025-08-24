@@ -76,7 +76,7 @@ public sealed class BackendServer : IAsyncDisposable
         });
 
         _host = app;
-        Logger.LogInformation("Starting backend server http://localhost:{Port}", Port);
+        Logger.LogInformation("Starting backend server {Marker} http://localhost:{Port}", Marker, Port);
         await app.StartAsync(cancellationToken);
     }
 

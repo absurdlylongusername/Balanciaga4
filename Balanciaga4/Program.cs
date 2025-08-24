@@ -33,6 +33,7 @@ builder.Services.AddSingleton<IProxySession, ProxySession>();
 // Dispatcher + Listener
 builder.Services.AddSingleton<IConnectionDispatcher, ConnectionDispatcher>();
 builder.Services.AddHostedService<TcpListenerService>();
+builder.Services.AddHostedService<TcpHealthChecker>();
 
 // Logging
 builder.Logging.ClearProviders();

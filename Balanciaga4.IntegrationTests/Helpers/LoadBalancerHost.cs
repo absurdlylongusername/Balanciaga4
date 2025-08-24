@@ -27,6 +27,7 @@ public sealed class LoadBalancerHost : IAsyncDisposable
             [$"LoadBalancer:{nameof(LbOptions.Timeouts)}:{nameof(TimeoutsOptions.IdleMs)}"] = idleMs.ToString(),
             [$"LoadBalancer:{nameof(LbOptions.Limits)}:{nameof(LimitsOptions.MaxConnections)}"] = "10000",
             [$"LoadBalancer:{nameof(LbOptions.Limits)}:{nameof(LimitsOptions.Backlog)}"] = "512",
+            [$"LoadBalancer:{nameof(LbOptions.HealthCheck)}:{nameof(HealthCheckOptions.JitterMs)}"] = "0",
         };
 
         var index = 0;

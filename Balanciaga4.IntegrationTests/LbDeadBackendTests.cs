@@ -8,12 +8,6 @@ public sealed class LbDeadBackendTests
 {
     private ILogger Logger { get; } = NUnitLogger.CreateLogger(nameof(LbDeadBackendTests));
 
-    [SetUp]
-    public void Setup()
-    {
-
-    }
-
     [Test]
     public async Task When_A_Backend_Is_Down_Some_Requests_Fail_Without_HealthChecks()
     {
@@ -48,7 +42,11 @@ public sealed class LbDeadBackendTests
                 failures++;
             }
         }
-        Assert.That(successes, Is.GreaterThan(0));
-        Assert.That(failures, Is.GreaterThan(0));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(successes, Is.GreaterThan(0));
+            Assert.That(failures, Is.GreaterThan(0));
+        });
     }
 }
