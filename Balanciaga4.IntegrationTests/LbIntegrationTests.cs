@@ -7,15 +7,6 @@ namespace Balanciaga4.IntegrationTests;
 public sealed class LbIntegrationTests
 {
     private ILogger Logger { get; } = NUnitLogger.CreateLogger(nameof(LbIntegrationTests));
-    private static SocketsHttpHandler HttpHandler => new()
-    {
-        // Retire the connection immediately rather than lingering for 2s
-        ResponseDrainTimeout = TimeSpan.FromMilliseconds(50),
-
-        // Optional: ensures we never reuse pooled sockets between requests
-        PooledConnectionLifetime = TimeSpan.Zero,
-        PooledConnectionIdleTimeout = TimeSpan.Zero
-    };
 
     [Test]
     public async Task RoundRobin_Should_Alternate_Backends()
@@ -35,8 +26,7 @@ public sealed class LbIntegrationTests
         await loadBalancer.StartAsync();
         Logger.LogInformation("Started load balancer{Port}", listenPort);
 
-        using var client = new HttpClient(HttpHandler, disposeHandler: true);
-        client.DefaultRequestHeaders.ConnectionClose = true;
+        using var client = TestHelpers.CreateHttpClient();
         Logger.LogInformation("Sending message 1 to http://localhost:{listenPort}/", listenPort);
         var r1 = await client.GetStringAsync($"http://localhost:{listenPort}/");
         Logger.LogInformation("Sending message 2 to http://localhost:{listenPort}/", listenPort);
@@ -61,26 +51,28 @@ public sealed class LbIntegrationTests
         var tmp = Path.Combine(Path.GetTempPath(), $"big-{Guid.NewGuid():N}.bin");
         try
         {
-            var size = 10 * 1024 * 1024;
+            // Arrange
+            const int size = 10 * 1024 * 1024; //10KB
             var random = new byte[size];
             new Random().NextBytes(random);
             await File.WriteAllBytesAsync(tmp, random);
 
             var portA = PortUtility.GetFreeTcpPort();
-            await using var beA = new BackendServer(Logger, portA, "A");
-            await beA.StartAsync(tmp);
+            await using var serverA = new BackendServer(Logger, portA, "A");
+            await serverA.StartAsync(tmp);
 
             var portB = PortUtility.GetFreeTcpPort();
-            await using var beB = new BackendServer(Logger, portB, "B");
-            await beB.StartAsync();
+            await using var serverB = new BackendServer(Logger, portB, "B");
+            await serverB.StartAsync();
 
             var listenPort = PortUtility.GetFreeTcpPort();
-            var backends = new[] { new IPEndPoint(IPAddress.Loopback, portA), new IPEndPoint(IPAddress.Loopback, portB) };
+            IPEndPoint[] backends = [new(IPAddress.Loopback, portA), new(IPAddress.Loopback, portB)];
 
-            await using var lb = new LoadBalancerHost(listenPort, backends);
-            await lb.StartAsync();
+            await using var loadBalancer = new LoadBalancerHost(listenPort, backends);
+            await loadBalancer.StartAsync();
 
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+            using var http = TestHelpers.CreateHttpClient();
+            http.Timeout = TimeSpan.FromSeconds(120);
             using var response = await http.GetAsync($"http://localhost:{listenPort}/big.bin", HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 

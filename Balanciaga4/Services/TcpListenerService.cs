@@ -26,6 +26,7 @@ public sealed class TcpListenerService : BackgroundService
         var listenEndpoint = OptionsMonitor.CurrentValue.ListenEndpoint;
         var listener = new TcpListener(listenEndpoint);
         listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        listener.Server.DualMode = OptionsMonitor.CurrentValue.UpgradeListenToDualStack;
         listener.Start(OptionsMonitor.CurrentValue.Limits.Backlog);
 
         Logger.LogInformation("Listening on {Listen} (backlog={Backlog})", listenEndpoint,

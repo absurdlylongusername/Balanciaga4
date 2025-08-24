@@ -20,18 +20,18 @@ public sealed class LbDeadBackendTests
         var portA = PortUtility.GetFreeTcpPort();
         var portB = PortUtility.GetFreeTcpPort();
 
-        await using var beA = new BackendServer(Logger, portA, "A");
-        await beA.StartAsync();
+        await using var serverA = new BackendServer(Logger, portA, "A");
+        await serverA.StartAsync();
 
         // B is intentionally NOT started
 
         var listenPort = PortUtility.GetFreeTcpPort();
-        var backends = new[] { new IPEndPoint(IPAddress.Loopback, portA), new IPEndPoint(IPAddress.Loopback, portB) };
+        IPEndPoint[] backends = [new(IPAddress.Loopback, portA), new(IPAddress.Loopback, portB)];
 
-        await using var lb = new LoadBalancerHost(listenPort, backends);
-        await lb.StartAsync();
+        await using var loadBalancer = new LoadBalancerHost(listenPort, backends);
+        await loadBalancer.StartAsync();
 
-        using var http = new HttpClient();
+        using var http = TestHelpers.CreateHttpClient();
 
         var successes = 0;
         var failures = 0;

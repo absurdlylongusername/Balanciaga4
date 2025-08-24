@@ -55,7 +55,19 @@ public sealed class LbOptionsConfigurator : IConfigureOptions<LbOptions>
                 ["LoadBalancer:Listen must be specified."]);
         }
 
-        options.ListenEndpoint = ParseEndPointOrThrow(listenValue);
+        var upgradeListenToDualStack = LoadBalancerSection[nameof(LbOptions.UpgradeListenToDualStack)];
+        if (string.IsNullOrWhiteSpace(upgradeListenToDualStack))
+        {
+            Logger.LogWarning("LoadBalancer:UpgradeListenToDualStack not specified. Using default value {Default}",
+                              options.UpgradeListenToDualStack);
+        }
+        else
+        {
+            options.UpgradeListenToDualStack = bool.Parse(upgradeListenToDualStack);
+        }
+
+
+        options.ListenEndpoint = NormalizeListenForDualStack(ParseEndPointOrThrow(listenValue), options.UpgradeListenToDualStack);
 
         // Backend endpoints
         var backendStrings = LoadBalancerSection.GetSection(nameof(LbOptions.BackendEndpoints)).Get<string[]>() ?? [];
@@ -82,6 +94,30 @@ public sealed class LbOptionsConfigurator : IConfigureOptions<LbOptions>
         }
 
         options.BackendEndpoints = parsedBackends;
+    }
+
+    private static IPEndPoint NormalizeListenForDualStack(IPEndPoint ep, bool upgrade)
+    {
+        if (!upgrade) return ep;
+
+        // Only upgrade “wildcards” and loopback; never touch specific IPs.
+        if (ep.Address.Equals(IPAddress.Any) ||
+            ep.Address.Equals(IPAddress.IPv6Any))
+        {
+            return new IPEndPoint(IPAddress.IPv6Any, ep.Port);
+        }
+
+        if (ep.Address.Equals(IPAddress.Loopback) ||
+            ep.Address.Equals(IPAddress.IPv6Loopback))
+        {
+            return new IPEndPoint(IPAddress.IPv6Loopback, ep.Port);
+        }
+
+        // If someone typed “localhost” in config → treat as loopback
+        if (ep.Address.IsIPv4MappedToIPv6 && ep.Address.MapToIPv4().Equals(IPAddress.Loopback))
+            return new IPEndPoint(IPAddress.IPv6Loopback, ep.Port);
+
+        return ep;
     }
 
     private static IPEndPoint ParseEndPointOrThrow(string value)

@@ -29,7 +29,8 @@ public sealed class LbIntegrationTimeoutTests
         await using var lb = new LoadBalancerHost(listenPort, backends);
         await lb.StartAsync();
 
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+        using var client = TestHelpers.CreateHttpClient();
+        client.Timeout = TimeSpan.FromSeconds(120);
         using var response = await client.GetAsync($"http://localhost:{listenPort}/big.bin", HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
 
@@ -52,23 +53,23 @@ public sealed class LbIntegrationTimeoutTests
     public async Task Idle_Connection_Should_Close_After_IdleMs()
     {
         var portA = PortUtility.GetFreeTcpPort();
-        await using var beA = new BackendServer(Logger, portA, "A");
-        await beA.StartAsync();
+        await using var serverA = new BackendServer(Logger, portA, "A");
+        await serverA.StartAsync();
 
         var portB = PortUtility.GetFreeTcpPort();
-        await using var beB = new BackendServer(Logger, portB, "B");
-        await beB.StartAsync();
+        await using var serverB = new BackendServer(Logger, portB, "B");
+        await serverB.StartAsync();
 
         var listenPort = PortUtility.GetFreeTcpPort();
-        var backends = new[] { new IPEndPoint(IPAddress.Loopback, portA), new IPEndPoint(IPAddress.Loopback, portB) };
+        IPEndPoint[] backends = [new(IPAddress.Loopback, portA), new(IPAddress.Loopback, portB)];
 
         // Set a small idle timeout (2s) to make the test quick
-        await using var lb = new LoadBalancerHost(listenPort, backends, idleMs: 2000);
-        await lb.StartAsync();
+        await using var loadBalancer = new LoadBalancerHost(listenPort, backends, idleMs: 2000);
+        await loadBalancer.StartAsync();
 
         // Open a raw TCP connection and stay idle
         using var client = new TcpClient();
-        await client.ConnectAsync(IPAddress.Loopback, listenPort);
+        await client.ConnectAsync("localhost", listenPort);
 
         var networkStream = client.GetStream();
         var buffer = new byte[1];
