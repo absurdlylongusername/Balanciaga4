@@ -2,7 +2,6 @@
 using Balanciaga4.Options;
 using Balanciaga4.Services;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;

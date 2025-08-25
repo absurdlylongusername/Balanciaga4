@@ -12,22 +12,22 @@ public sealed class LbIntegrationTimeoutTests
     [Test]
     public async Task Slow_Client_Should_Still_Complete_Download()
     {
+        const int size = 1 * 512 * 512; // With this size it should take about 8s to pass
         var portA = PortUtility.GetFreeTcpPort();
-        await using var beA = new BackendServer(Logger, portA, "A");
-        // Serve 2MB to keep test quick
+        await using var serverA = new BackendServer(Logger, portA, "A");
         var file = Path.Combine(Path.GetTempPath(), $"slow-{Guid.NewGuid():N}.bin");
-        await File.WriteAllBytesAsync(file, new byte[2 * 1024 * 1024]);
-        await beA.StartAsync(file);
+        await File.WriteAllBytesAsync(file, new byte[size]);
+        await serverA.StartAsync(file);
 
         var portB = PortUtility.GetFreeTcpPort();
-        await using var beB = new BackendServer(Logger, portB, "B");
-        await beB.StartAsync();
+        await using var serverB = new BackendServer(Logger, portB, "B");
+        await serverB.StartAsync();
 
         var listenPort = PortUtility.GetFreeTcpPort();
-        var backends = new[] { new IPEndPoint(IPAddress.Loopback, portA), new IPEndPoint(IPAddress.Loopback, portB) };
+        IPEndPoint[] backends = [new(IPAddress.Loopback, portA), new(IPAddress.Loopback, portB)];
 
-        await using var lb = new LoadBalancerHost(listenPort, backends);
-        await lb.StartAsync();
+        await using var loadBalancer = new LoadBalancerHost(listenPort, backends);
+        await loadBalancer.StartAsync();
 
         using var client = TestHelpers.CreateHttpClient();
         client.Timeout = TimeSpan.FromSeconds(120);
@@ -45,7 +45,7 @@ public sealed class LbIntegrationTimeoutTests
             await Task.Delay(2); // throttle to force backpressure through LB
         }
 
-        Assert.That(total, Is.EqualTo(2 * 1024 * 1024));
+        Assert.That(total, Is.EqualTo(size));
         File.Delete(file);
     }
 

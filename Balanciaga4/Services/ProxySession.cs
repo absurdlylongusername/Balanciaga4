@@ -106,7 +106,6 @@ public sealed class ProxySession : IProxySession
                                                         clientRemoteEndPoint, bytes);
                                     });
 
-            // Two directional pumps; either side closing should half-close the opposite and allow a short drain.
             Logger.LogDebug("Setting up pumps");
             var clientToBackend = BytePump.PipeAsync(clientObserved, backendObserved, idleCts.Token);
             var backendToClient = BytePump.PipeAsync(backendObserved, clientObserved, idleCts.Token);

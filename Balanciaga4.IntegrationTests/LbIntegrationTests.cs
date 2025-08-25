@@ -49,6 +49,7 @@ public sealed class LbIntegrationTests
     public async Task Large_File_Should_Proxy_Successfully()
     {
         var tmp = Path.Combine(Path.GetTempPath(), $"big-{Guid.NewGuid():N}.bin");
+        var tmp2 = Path.Combine(Path.GetTempPath(), $"big-{Guid.NewGuid():N}.bin");
         try
         {
             // Arrange
@@ -56,6 +57,7 @@ public sealed class LbIntegrationTests
             var random = new byte[size];
             new Random().NextBytes(random);
             await File.WriteAllBytesAsync(tmp, random);
+            await File.WriteAllBytesAsync(tmp2, random);
 
             var portA = PortUtility.GetFreeTcpPort();
             await using var serverA = new BackendServer(Logger, portA, "A");
@@ -63,7 +65,7 @@ public sealed class LbIntegrationTests
 
             var portB = PortUtility.GetFreeTcpPort();
             await using var serverB = new BackendServer(Logger, portB, "B");
-            await serverB.StartAsync();
+            await serverB.StartAsync(tmp2);
 
             var listenPort = PortUtility.GetFreeTcpPort();
             IPEndPoint[] backends = [new(IPAddress.Loopback, portA), new(IPAddress.Loopback, portB)];
@@ -90,6 +92,7 @@ public sealed class LbIntegrationTests
         finally
         {
             if (File.Exists(tmp)) File.Delete(tmp);
+            if (File.Exists(tmp2)) File.Delete(tmp2);
         }
     }
 }

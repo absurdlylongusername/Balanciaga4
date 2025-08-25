@@ -10,7 +10,7 @@ public sealed class BackendServer : IAsyncDisposable
 {
     private int Port { get; }
     private string Marker { get; }
-    private IHost? _host;
+    private IHost? Host { get; set; }
     private ILogger Logger { get; }
 
     public BackendServer(ILogger logger, int port, string marker)
@@ -34,22 +34,6 @@ public sealed class BackendServer : IAsyncDisposable
         });
 
         var app = builder.Build();
-        //
-        // app.MapGet("/", () =>
-        // {
-        //     Logger.LogInformation("Index hit {Port}", Port);
-        //     return Results.Text(Marker, "text/plain");
-        // });
-        //
-        // if (!string.IsNullOrWhiteSpace(bigFilePath))
-        // {
-        //     app.MapGet("/big.bin", async context =>
-        //     {
-        //         context.Response.ContentType = "application/octet-stream";
-        //         await using var fileStream = File.OpenRead(bigFilePath!);
-        //         await fileStream.CopyToAsync(context.Response.Body, cancellationToken);
-        //     });
-        // }
 
         app.Run(async context =>
         {
@@ -75,16 +59,16 @@ public sealed class BackendServer : IAsyncDisposable
             }
         });
 
-        _host = app;
+        Host = app;
         Logger.LogInformation("Starting backend server {Marker} http://localhost:{Port}", Marker, Port);
         await app.StartAsync(cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_host is null) return;
-        await _host.StopAsync();
-        _host.Dispose();
-        _host = null;
+        if (Host is null) return;
+        await Host.StopAsync();
+        Host.Dispose();
+        Host = null;
     }
 }

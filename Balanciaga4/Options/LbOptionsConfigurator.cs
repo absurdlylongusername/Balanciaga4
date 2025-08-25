@@ -1,5 +1,4 @@
 using System.Net;
-using Balanciaga4.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -33,6 +32,7 @@ public sealed class LbOptionsConfigurator : IConfigureOptions<LbOptions>
 
         options.Limits = limits;
         options.Timeouts = timeouts;
+        Logger.LogDebug("idle timeout is {Timeout}", options.Timeouts.IdleMs);
         options.HealthCheck = health;
 
         // Policy (enum)

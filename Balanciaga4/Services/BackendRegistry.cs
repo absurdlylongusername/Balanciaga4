@@ -17,13 +17,13 @@ public sealed class BackendRegistry : IBackendRegistry
     private ImmutableArray<IPEndPoint> OrderedEndpoints { get; set; } = ImmutableArray<IPEndPoint>.Empty;
 
 
-    public BackendRegistry(ILogger<BackendRegistry> logger, IOptionsMonitor<LbOptions> optionsMonitorMonitor)
+    public BackendRegistry(ILogger<BackendRegistry> logger, IOptionsMonitor<LbOptions> optionsMonitor)
     {
         Logger = logger;
-        OptionsMonitor = optionsMonitorMonitor;
+        OptionsMonitor = optionsMonitor;
 
-        LoadOptions(optionsMonitorMonitor.CurrentValue, "Initial load");
-        optionsMonitorMonitor.OnChange(m => LoadOptions(m, "reload"));
+        LoadOptions(optionsMonitor.CurrentValue, "Initial load");
+        optionsMonitor.OnChange(m => LoadOptions(m, "reload"));
     }
 
     private void LoadOptions(LbOptions options, string reason)

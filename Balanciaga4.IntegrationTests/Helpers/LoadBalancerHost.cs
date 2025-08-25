@@ -13,7 +13,7 @@ namespace Balanciaga4.IntegrationTests.Helpers;
 public sealed class LoadBalancerHost : IAsyncDisposable
 {
     public int ListenPort { get; }
-    private readonly IHost? _host;
+    private IHost? Host { get; set; }
 
     public LoadBalancerHost(int listenPort, IEnumerable<IPEndPoint> backendEndpoints, int idleMs = 50)
     {
@@ -41,9 +41,8 @@ public sealed class LoadBalancerHost : IAsyncDisposable
             .AddInMemoryCollection(inMemory)
             .Build();
 
-        var builder = Host.CreateApplicationBuilder();
+        var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder();
 
-        // Logging to console for visibility in test output
         builder.Logging.ClearProviders();
         builder.Logging.AddSimpleConsole(options =>
         {
@@ -72,21 +71,22 @@ public sealed class LoadBalancerHost : IAsyncDisposable
         builder.Services.AddSingleton<IProxySession, ProxySession>();
         builder.Services.AddSingleton<IConnectionDispatcher, ConnectionDispatcher>();
         builder.Services.AddHostedService<TcpListenerService>();
+        // builder.Services.AddHostedService<TcpHealthChecker>();
 
-        _host = builder.Build();
+        Host = builder.Build();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_host is null) throw new InvalidOperationException("Host not built.");
-        await _host.StartAsync(cancellationToken);
+        if (Host is null) throw new InvalidOperationException("Host not built.");
+        await Host.StartAsync(cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_host is null) return;
+        if (Host is null) return;
 
-        await _host.StopAsync();
-        _host.Dispose();
+        await Host.StopAsync();
+        Host.Dispose();
     }
 }

@@ -6,7 +6,7 @@ public static class TestHelpers
     {
         ResponseDrainTimeout = TimeSpan.FromMilliseconds(50),
 
-        // Optional: ensures we never reuse pooled sockets between requests
+        // Something that's supposed to ensure we never reuse pooled sockets between requests
         PooledConnectionLifetime = TimeSpan.Zero,
         PooledConnectionIdleTimeout = TimeSpan.Zero
     };
