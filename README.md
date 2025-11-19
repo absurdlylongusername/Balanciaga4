@@ -1,8 +1,8 @@
 # Balanciaga4 - TCP Layer 4 Load Balancer
 
-Bonjour Bonjour! Here is my solution to the Payroc Technical Test.
+A layer 4 load balancer I made for Payroc take home test.
 
-This was a very interesting problem that seemed simple enough at first, but I quickly discovered it had a lot of nuance and was a lot more difficult than I expected, on top of seemingly esoteric bugs that took a while to fix.
+This was a very interesting problem that seemed simple enough at first, but had more nuance than expected.
 
 ## Ideal Solution
 
