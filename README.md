@@ -1,12 +1,12 @@
 # Balanciaga4 - TCP Layer 4 Load Balancer
 
-A layer 4 load balancer I made for Payroc take home test.
+A layer 4 load balancer I did for a take home. Could have chosen not to do it, but it sounded like a fun challenge and I like programming.
 
-This was a very interesting problem that seemed simple enough at first, but had more nuance than expected.
+Seemed simple enough at first, but had more nuance than expected.
 
 ## Ideal Solution
 
-My ideal solution was to have a TCP/UDP layer 4 load balancer. 
+End goal was to have a TCP/UDP layer 4 load balancer.
 
 It would have hot swappable load balancing policies: 
 - round robin
@@ -15,13 +15,13 @@ It would have hot swappable load balancing policies:
 - Source IP hash (sticky routing) - ensure client mapped to same endpoint on each connection
 - Some others
 
-As well as being able to hot swap with servers exist in the balancing pool.
+As well as being able to hot swap/add/remove servers in the balancing pool.
 
 It would also have health checks to check healthy servers and remove them from the pool when they go offline, and add them back when they come back online.
 
 Intelligent metrics and logging: E.g. active connections, throughput per second or minute, balancing distribution, etc.
 
-## My solution
+## What I managed to do
 
 TCP layer 4 load balancer with round robin policy and health checks, with some logging.
 
@@ -35,11 +35,11 @@ LbOptions stores the config, which gets read in from appsettings.json, command l
 
 Configuration is bound and validated in `LbOptionsConfigurator` and `LbOptionsValidator`.
 
-The code uses an `IOptionsMonitor` which is supposed to hot reload the options whenever they change. I never actually got to test if this works though.
+The code uses an `IOptionsMonitor` which is supposed to hot reload the options whenever they change. 
 
 #### TCP Listener
 
-`TcpListenerService` is what listens on the endpoint passed in from config. If the listening endpoint is loopback or `IPAddress.Any` then it will listen in dual mode in IPV6.
+`TcpListenerService` is what listens on the endpoint passed in from config. If the listening endpoint is loopback or `IPAddress.Any` then it will listen in dual mode with IPV6.
 
 
 
@@ -49,7 +49,7 @@ New connections dispatch a task to handle load balancing for that client in `Con
 
 `ProxySession` is what handles the main routing logic.
 
-It opens TCP connection from LB to the selected backend server, and the begins data transfer between client and LB, and the LB and the server. 
+It opens TCP connection from LB to the selected backend server, and then begins data transfer between client and LB, and between the LB and the server. 
 
 If it takes too long to connect to the backend server, or the client or server become idle for too long and stop sending data, it will cancel the whole operation.
 
@@ -118,6 +118,6 @@ This was easily confirmed by changing the endpoint in the config from `127.0.0.1
 This resulted in me changing the code to ensure that the load balancer listens in dual mode if the endpoint is localhost.
 
 **Non-determinism of routing** \
-After adding health checks, I added logic in BackendRegistry that stores the endpoints in a `ConcurrentDictionary`. However, my solution didn't ensure that endpoints are returned in the order that are put into the dictionary (I was doing `Dictionary.Keys.ToList()`).
+After adding health checks, I added logic in BackendRegistry that stores the endpoints in a `ConcurrentDictionary`. However, my solution didn't ensure that endpoints are returned in the order they are put into the dictionary (I was doing `Dictionary.Keys.ToList()`).
 
 This resulted in tests failing because the wrong endpoint was being hit. After adding OrderedEndpoints to ensure endpoints are returned in the order they exist in the config, the tests passed again.
